@@ -1,0 +1,13 @@
+import {build as viteBuild} from 'vite';
+import {build as bundle} from 'esbuild';
+import {cp,mkdir,rm} from 'node:fs/promises';
+import {resolve,relative} from 'node:path';
+const root=process.cwd(),dist=resolve(root,'dist');
+if(relative(root,dist)!=='dist')throw new Error('Build destination is outside project');
+await rm(dist,{recursive:true,force:true});
+await viteBuild();
+await mkdir('dist/server',{recursive:true});
+await bundle({entryPoints:['server/worker.mjs'],outfile:'dist/server/index.js',bundle:true,format:'esm',platform:'browser',target:'es2022',loader:{'.html':'text'}});
+await mkdir('dist/.openai',{recursive:true});
+await cp('.openai/hosting.json','dist/.openai/hosting.json');
+await cp('drizzle','dist/.openai/drizzle',{recursive:true});

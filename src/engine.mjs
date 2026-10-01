@@ -1,5 +1,5 @@
 import {Pokemon,Move,Field,Generations,calculate} from '@smogon/calc';
-import {getFinalSpeed,checkItem,getStabMod} from '@smogon/calc/dist/mechanics/util.js';
+import {getFinalSpeed,checkItem,getStabMod,isGrounded} from '@smogon/calc/dist/mechanics/util.js';
 export {Pokemon,Move,Field};
 export const gen=Generations.get(0);
 export const STATS=['hp','atk','def','spa','spd','spe'];
@@ -50,6 +50,11 @@ export function runCalculation(attacking,defending,field){
  if(['Counter','Mirror Coat','Metal Burst','Comeuppance','Spit Up','Beat Up'].includes(attacking.move))throw new Error('该招式需要上一击伤害、蓄力次数或队伍信息；当前条件不足，无法给出可靠结果。');
  const overrides=attacking.move==='Metal Claw'?{basePower:50,category:'Physical',type:'Steel',flags:{contact:1,slicing:1}}:undefined;
  const move=new Move(gen,attacking.move,{ability:attacker.ability,item:attacker.item,isCrit:!!attacking.crit,hits:attacking.hits||undefined,overrides});
+ // Champions calc omits Grassy Glide's conditional priority. Set it before immunity checks.
+ const groundingAttacker=attacker.clone();checkItem(groundingAttacker,false);
+ if(move.name==='Grassy Glide'&&resolved.terrain==='Grassy'&&isGrounded(groundingAttacker,battleField)){
+  move.priority=1;move.overrides={...move.overrides,priority:1};
+ }
  const result=calculate(gen,attacker,defender,move,battleField);
  // Damage arrays retain per-hit mechanics; convolve independent hit rolls for exact OHKO probability.
  if(['Super Fang','Endeavor','Fissure','Guillotine','Horn Drill','Sheer Cold'].includes(move.name)){
@@ -81,7 +86,33 @@ export function runCalculation(attacking,defending,field){
  const ateBoost=originalMove.type==='Normal'&&originalMove.type!==result.move.type&&['Pixilate','Aerilate','Refrigerate','Dragonize'].includes(convertedBy);
  const abilityPowerMultiplier=ateBoost?1.2:1;
  const stab=getStabMod(result.attacker,result.move,{})/4096;
- return {min,max,minPercent:min/maxHP*100,maxPercent:max/maxHP*100,currentHP,maxHP,ko:Math.min(1,Math.max(0,ko)),survive:1-Math.min(1,Math.max(0,ko)),label,rolls,distribution:[...dist].sort((a,b)=>a[0]-b[0]),minRemaining,maxRemaining,guard:survivalGuard?(sash?'气势披带':'结实'):'',weather:result.field.weather||'',terrain:result.field.terrain||'',description:max===0?'该招式因免疫或发动条件无法造成伤害。':result.fullDesc('%',false),category:result.move.category,type:result.move.type,bp:result.rawDesc.moveBP||result.move.bp,originalType:originalMove.type,originalBP:originalMove.bp,convertedBy,abilityPowerMultiplier,abilityBoostedBP:ateBoost?Math.floor(originalMove.bp*1.2):originalMove.bp,stab,attack:result.attacker.stats,defense:result.defender.stats,multiHit:!singleHit,hitCount:move.hits};
+ const terrainInfo=terrainConditions(result);
+ return {min,max,minPercent:min/maxHP*100,maxPercent:max/maxHP*100,currentHP,maxHP,ko:Math.min(1,Math.max(0,ko)),survive:1-Math.min(1,Math.max(0,ko)),label,rolls,distribution:[...dist].sort((a,b)=>a[0]-b[0]),minRemaining,maxRemaining,guard:survivalGuard?(sash?'气势披带':'结实'):'',weather:result.field.weather||'',terrain:result.field.terrain||'',description:max===0?'该招式因免疫或发动条件无法造成伤害。':result.fullDesc('%',false),category:result.move.category,type:result.move.type,bp:result.rawDesc.moveBP||result.move.bp,originalType:originalMove.type,originalBP:originalMove.bp,convertedBy,abilityPowerMultiplier,abilityBoostedBP:ateBoost?Math.floor(originalMove.bp*1.2):originalMove.bp,stab,attack:result.attacker.stats,defense:result.defender.stats,multiHit:!singleHit,hitCount:move.hits,...terrainInfo};
+}
+function terrainConditions(result){
+ const {attacker,defender,move,field}=result,terrain=field.terrain||'';
+ const attackerGrounded=isGrounded(attacker,field),defenderGrounded=isGrounded(defender,field);
+ const moveTerrainMultiplier=move.name==='Expanding Force'&&terrain==='Psychic'&&attackerGrounded?1.5:move.name==='Rising Voltage'&&terrain==='Electric'&&defenderGrounded?2:move.name==='Terrain Pulse'&&terrain&&attackerGrounded?2:move.name==='Misty Explosion'&&terrain==='Misty'&&attackerGrounded?1.5:1;
+ const terrainBoost=attackerGrounded&&((terrain==='Psychic'&&move.type==='Psychic')||(terrain==='Grassy'&&move.type==='Grass')||(terrain==='Electric'&&move.type==='Electric'))?1.3:1;
+ const terrainReduction=defenderGrounded&&((terrain==='Misty'&&move.type==='Dragon')||(terrain==='Grassy'&&['Earthquake','Bulldoze'].includes(move.name)))?0.5:1;
+ const spreadMultiplier=field.gameType==='Doubles'&&['allAdjacent','allAdjacentFoes'].includes(move.target)?0.75:1;
+ const relevant=!!terrain||['Expanding Force','Rising Voltage','Terrain Pulse','Misty Explosion','Grassy Glide','Steel Roller'].includes(move.name);
+ let terrainNote='';
+ if(relevant){
+  const notes=[];
+  if(moveTerrainMultiplier!==1)notes.push('招式威力 ×'+moveTerrainMultiplier);
+  if(terrainBoost!==1)notes.push('场地增伤 ×1.3');
+  if(terrainReduction!==1)notes.push('场地减伤 ×0.5');
+  if(spreadMultiplier!==1)notes.push('双打群攻 ×0.75');
+  if(move.name==='Grassy Glide'&&move.priority===1)notes.push('接地先制 +1');
+  if(move.name==='Expanding Force'&&terrain==='Psychic'&&!attackerGrounded)notes.push('使用者未接地，无场地增伤／群攻');
+  if(move.name==='Rising Voltage'&&terrain==='Electric'&&!defenderGrounded)notes.push('目标未接地，招式不翻倍');
+  if(move.name==='Terrain Pulse'&&terrain&&!attackerGrounded)notes.push('使用者未接地，不变属性／不翻倍');
+  if(move.name==='Steel Roller'&&!terrain)notes.push('无场地，招式失败');
+  if(move.priority>0&&terrain==='Psychic'&&defenderGrounded)notes.push('精神场地阻挡先制招式');
+  terrainNote=notes.join(' · ');
+ }
+ return {attackerGrounded,defenderGrounded,moveTerrainMultiplier,terrainBoost,terrainReduction,spreadMultiplier,priority:move.priority,terrainNote};
 }
 export function defaultSet(side){
  return {species:side==='left'?'Garchomp':'Charizard-Mega-Y',points:side==='left'?{hp:32,atk:2,def:0,spa:0,spd:32,spe:0}:{hp:2,atk:0,def:0,spa:32,spd:0,spe:32},nature:side==='left'?'Careful':'Modest',ability:side==='left'?'Rough Skin':'Drought',abilityOn:true,item:side==='left'?'Leftovers':'Charizardite Y',hp:100,status:'',boosts:{atk:0,def:0,spa:0,spd:0,spe:0},move:side==='left'?'Rock Slide':'Flamethrower',crit:false,hits:undefined,activeMove:0,moveSlots:(side==='left'?['Rock Slide','Earthquake','Dragon Claw','Iron Head']:['Flamethrower','Air Slash','Solar Beam','Focus Blast']).map(move=>({move,crit:false,hits:undefined})),screens:{isReflect:false,isLightScreen:false,isAuroraVeil:false,isHelpingHand:false,isFriendGuard:false,isTailwind:false}};

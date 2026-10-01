@@ -4,11 +4,13 @@
 
 顶部「速度线」进入独立页面（`#speed`）。双方配置与伤害页共享，支持能力点、性格、强化、讲究围巾、顺风、麻痹、天气速度特性及戏法空间。速度线表分列显示低速、零点、满速、极速、围巾和顺风；普通与 Mega 分行，Mega 的围巾列不适用。
 
+顶部「我的队伍」（`#teams`）支持 6 个成员槽位、本地浏览器保存、云端账号保存、JSON 导入／导出和副本另存。载入成员到任一侧，修改后可以更新回原槽位，再保存。云端按 Sites 转发的登录用户隔离；并发版本不一致时保留草稿，避免覆盖其他设备的配置。云端需要登录同一 ChatGPT 账号；本地队伍只在当前浏览器，可通过文件迁移。
+
 ## Windows 本地启动
 
 在本目录运行 `npm install`（初次使用），然后运行 `npm run dev`，打开 http://127.0.0.1:5173 。也可双击 `启动计算器.cmd`。终端关闭后本地服务停止。
 
-`npm run build` 构建静态网站，`npm run preview` 预览构建结果。全部宝可梦图像和名称数据均已保存在项目中；Google 字体不可用时使用系统字体。
+`npm run build` 构建 React 客户端和 Cloudflare Worker。`npm run preview` 只预览构建后的客户端；需要验证云端接口时使用 `npm run dev`。本地开发使用独立 SQLite 文件 `.sites-runtime/teams.sqlite` 模拟 D1 和固定预览用户，未打包到生产。生产 D1 绑定为 `DB`，schema 在 `db/schema.ts`，Drizzle 迁移在 `drizzle/`；发布时由 Sites 应用迁移。全部宝可梦图像和名称数据均已保存在项目中；Google 字体不可用时使用系统字体。
 
 ## 验证
 
@@ -17,6 +19,8 @@
 Mega 专项覆盖全部 82 个形态的种族值、属性和特性；验证妖精皮肤巨声的 Normal→Fairy、1.2 倍威力和 1.5 倍本系，以及飞行皮肤、冰冻皮肤、龙皮肤与大力士。详细结果见 [Mega 检查报告](docs/mega-audit.md)。速度测试覆盖取整、等级、道具、顺风、状态、天气特性、同速、戏法空间和最低能力点。
 
 `node scripts/browser-check.mjs`（也可直接运行 `node scripts/check-update.mjs`）使用 Windows 的 Microsoft Edge 检查四招同时计算、独立要害、Mega 特性与普通形态回退、速度控制、跨页面同步、浏览器返回、交换/重置，以及 320/390/768/1024 宽度布局。截图保存在 `verification/`，不会发布到网站。
+
+`node scripts/check-teams.mjs` 检查本地保存／重新打开、云端跨浏览器载入、Mega 配置保留、成员编辑回写、文件往返、损坏文件、并发冲突保留草稿及手机布局。场地专项报告见 [场地检查报告](docs/terrain-audit.md)。
 
 ## 数据与规则
 

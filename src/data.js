@@ -1,4 +1,4 @@
-import dex from './dex.json';
+import dex from './dex.json' with {type:'json'};
 import translations from './translations.json';
 export const id=s=>s.toLowerCase().replace(/[^a-z0-9]/g,'');
 export const tr=(kind,name)=>translations[kind]?.[id(name)]||name;

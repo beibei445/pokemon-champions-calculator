@@ -9,6 +9,10 @@ export function ConversionNote({result}){
  if(!result?.convertedBy)return null;
  return <span className="conversion-note"><Sparkles size={12}/>{tr('abilities',result.convertedBy)}{result.abilityPowerMultiplier>1?` · 威力 ×${result.abilityPowerMultiplier}`:''}{result.stab>1?` · 本系 ×${result.stab}`:''}</span>;
 }
+export function TerrainNote({result}){
+ if(!result?.terrainNote)return null;
+ return <span className="terrain-note"><Sparkles size={12}/>{result.terrainNote}</span>;
+}
 
 export function MovePanel({side,set,onChange,results}){
  const mine=side==='left';const slots=getMoveSlots(set);
@@ -21,6 +25,7 @@ export function MovePanel({side,set,onChange,results}){
    <Picker label={`${mine?'我方':'对手'}招式${i+1}`} compact value={slot.move} options={moves} onChange={move=>change({move,hits:undefined})} renderExtra={x=><Type type={x.type}/>}/>
    <div className="slot-type"><Type type={move?.type}/>{result?.type!==move?.type&&result&&<><ChevronRight size={11}/><Type type={result.type}/></>}<span>威力 <b>{move?.bp||'变化'}</b>{result?.abilityPowerMultiplier>1&&<b> → {result.abilityBoostedBP}</b>}</span></div>
    <ConversionNote result={result}/>
+   <TerrainNote result={result}/>
    <button className="slot-damage" onClick={()=>onChange(selectMoveSlot(set,i))} aria-label={`${mine?'我方':'对手'}招式${i+1}伤害详情`}><strong>{result?`${pct(result.minPercent)}–${pct(result.maxPercent)}%`:'计算中'}</strong><span>{result?`${result.min}–${result.max} 伤害`:''}</span></button>
    <div className="slot-verdict"><span className={result?.ko===0?'safe-text':result?.ko===1?'danger-text':'risky-text'}>{result?`目标存活 ${pct(result.survive*100)}%`:''}</span><Toggle checked={slot.crit} onChange={crit=>change({crit})}>要害</Toggle></div>
    {move?.multihit&&<Select label={`${mine?'我方':'对手'}招式${i+1}命中次数`} value={slot.hits||defaultHits} options={Array.from({length:typeof move.multihit==='number'?1:move.multihit[1]-move.multihit[0]+1},(_,i)=>{const n=typeof move.multihit==='number'?move.multihit:move.multihit[0]+i;return[n,n+' 次']})} onChange={v=>change({hits:Number(v)})}/>}
