@@ -1,4 +1,5 @@
 import {Pokemon,Move,Field,Generations,calculate} from '@smogon/calc';
+import {getFinalSpeed,checkItem,getStabMod} from '@smogon/calc/dist/mechanics/util.js';
 export {Pokemon,Move,Field};
 export const gen=Generations.get(0);
 export const STATS=['hp','atk','def','spa','spd','spe'];
@@ -11,7 +12,7 @@ export function validateSet(set){
 }
 export function makePokemon(set){
  validateSet(set);
- const p=new Pokemon(gen,set.species,{level:50,nature:set.nature,evs:set.points,boosts:set.boosts,ability:set.ability||undefined,abilityOn:!!set.abilityOn,item:set.item||undefined,status:set.status||'',moves:[set.move]});
+ const p=new Pokemon(gen,set.species,{level:50,nature:set.nature,evs:set.points,boosts:set.boosts,ability:set.ability||undefined,abilityOn:!!set.abilityOn,item:set.item||undefined,status:set.status||'',moves:getMoveSlots(set).map(m=>m.move)});
  p.originalCurHP=Math.max(1,Math.floor(p.maxHP()*set.hp/100));
  return p;
 }
@@ -33,8 +34,10 @@ function automaticEffect(a,b,map){
  const x=map[a.ability],y=map[b.ability];
  if(!x)return y||'';if(!y||x===y)return x;
  // The slower weather/terrain setter activates last. A tie requires an explicit selection.
- if(a.stats.spe===b.stats.spe)return '';
- return a.stats.spe<b.stats.spe?x:y;
+ const entryField=new Field();checkItem(a,false);checkItem(b,false);
+ const aSpeed=getFinalSpeed(gen,a,entryField,entryField.attackerSide),bSpeed=getFinalSpeed(gen,b,entryField,entryField.defenderSide);
+ if(aSpeed===bSpeed)return '';
+ return aSpeed<bSpeed?x:y;
 }
 export function resolvedField(a,b,field){
  return {...field,weather:field.weather==='Auto'?automaticEffect(a,b,weatherAbilities):field.weather,terrain:field.terrain==='Auto'?automaticEffect(a,b,terrainAbilities):field.terrain};
@@ -72,9 +75,53 @@ export function runCalculation(attacking,defending,field){
  if(Array.isArray(result.damage)&&!Array.isArray(result.damage[0])&&result.damage.length===16)rolls=result.damage;
  const minRemaining=survivalGuard?Math.max(1,currentHP-max):Math.max(0,currentHP-max);
  const maxRemaining=survivalGuard?Math.max(1,currentHP-min):Math.max(0,currentHP-min);
- return {min,max,minPercent:min/maxHP*100,maxPercent:max/maxHP*100,currentHP,maxHP,ko:Math.min(1,Math.max(0,ko)),survive:1-Math.min(1,Math.max(0,ko)),label,rolls,distribution:[...dist].sort((a,b)=>a[0]-b[0]),minRemaining,maxRemaining,guard:survivalGuard?(sash?'气势披带':'结实'):'',weather:result.field.weather||'',terrain:result.field.terrain||'',description:max===0?'该招式因属性、特性或场地效果无法造成伤害。':result.fullDesc('%',false),category:result.move.category,type:result.move.type,bp:result.rawDesc.moveBP||result.move.bp,attack:result.attacker.stats,defense:result.defender.stats,multiHit:!singleHit,hitCount:move.hits};
+ const originalMove=new Move(gen,attacking.move,{overrides});
+ const conversionCandidate=result.rawDesc.attackerAbility||attacking.ability;
+ const convertedBy=originalMove.type!==result.move.type&&['Pixilate','Aerilate','Refrigerate','Dragonize','Liquid Voice','Normalize'].includes(conversionCandidate)?conversionCandidate:'';
+ const ateBoost=originalMove.type==='Normal'&&originalMove.type!==result.move.type&&['Pixilate','Aerilate','Refrigerate','Dragonize'].includes(convertedBy);
+ const abilityPowerMultiplier=ateBoost?1.2:1;
+ const stab=getStabMod(result.attacker,result.move,{})/4096;
+ return {min,max,minPercent:min/maxHP*100,maxPercent:max/maxHP*100,currentHP,maxHP,ko:Math.min(1,Math.max(0,ko)),survive:1-Math.min(1,Math.max(0,ko)),label,rolls,distribution:[...dist].sort((a,b)=>a[0]-b[0]),minRemaining,maxRemaining,guard:survivalGuard?(sash?'气势披带':'结实'):'',weather:result.field.weather||'',terrain:result.field.terrain||'',description:max===0?'该招式因免疫或发动条件无法造成伤害。':result.fullDesc('%',false),category:result.move.category,type:result.move.type,bp:result.rawDesc.moveBP||result.move.bp,originalType:originalMove.type,originalBP:originalMove.bp,convertedBy,abilityPowerMultiplier,abilityBoostedBP:ateBoost?Math.floor(originalMove.bp*1.2):originalMove.bp,stab,attack:result.attacker.stats,defense:result.defender.stats,multiHit:!singleHit,hitCount:move.hits};
 }
 export function defaultSet(side){
- return {species:side==='left'?'Garchomp':'Charizard-Mega-Y',points:side==='left'?{hp:32,atk:2,def:0,spa:0,spd:32,spe:0}:{hp:2,atk:0,def:0,spa:32,spd:0,spe:32},nature:side==='left'?'Careful':'Modest',ability:side==='left'?'Rough Skin':'Drought',abilityOn:true,item:side==='left'?'Leftovers':'Charizardite Y',hp:100,status:'',boosts:{atk:0,def:0,spa:0,spd:0,spe:0},move:side==='left'?'Rock Slide':'Flamethrower',crit:false,hits:undefined,screens:{isReflect:false,isLightScreen:false,isAuroraVeil:false,isHelpingHand:false,isFriendGuard:false}};
+ return {species:side==='left'?'Garchomp':'Charizard-Mega-Y',points:side==='left'?{hp:32,atk:2,def:0,spa:0,spd:32,spe:0}:{hp:2,atk:0,def:0,spa:32,spd:0,spe:32},nature:side==='left'?'Careful':'Modest',ability:side==='left'?'Rough Skin':'Drought',abilityOn:true,item:side==='left'?'Leftovers':'Charizardite Y',hp:100,status:'',boosts:{atk:0,def:0,spa:0,spd:0,spe:0},move:side==='left'?'Rock Slide':'Flamethrower',crit:false,hits:undefined,activeMove:0,moveSlots:(side==='left'?['Rock Slide','Earthquake','Dragon Claw','Iron Head']:['Flamethrower','Air Slash','Solar Beam','Focus Blast']).map(move=>({move,crit:false,hits:undefined})),screens:{isReflect:false,isLightScreen:false,isAuroraVeil:false,isHelpingHand:false,isFriendGuard:false,isTailwind:false}};
 }
 export const defaultField=()=>({gameType:'Singles',weather:'Auto',terrain:'Auto',gravity:false});
+
+export function getMoveSlots(set){
+ if(Array.isArray(set.moveSlots)&&set.moveSlots.length===4)return set.moveSlots;
+ return Array.from({length:4},()=>({move:set.move,crit:!!set.crit,hits:set.hits}));
+}
+export function selectMoveSlot(set,index){
+ if(!Number.isInteger(index)||index<0||index>3)throw new Error('招式槽位必须为 0–3。');
+ return {...set,activeMove:index,...getMoveSlots(set)[index]};
+}
+export function updateMoveSlot(set,index,patch){
+ const slots=getMoveSlots(set).map((slot,i)=>i===index?{...slot,...patch}:{...slot});
+ return selectMoveSlot({...set,moveSlots:slots},index);
+}
+export function runMoveSet(attacking,defending,field){
+ return getMoveSlots(attacking).map(slot=>runCalculation({...attacking,...slot},defending,field));
+}
+export function speedForSet(set,field){
+ const p=makePokemon(set);const battleField=new Field({weather:field.weather||undefined,terrain:field.terrain||undefined,attackerSide:set.screens});
+ checkItem(p,battleField.isMagicRoom);
+ const effective=getFinalSpeed(gen,p,battleField,battleField.attackerSide);
+ return {base:p.species.baseStats.spe,raw:p.rawStats.spe,effective,points:set.points.spe,boost:set.boosts.spe,weather:battleField.weather||'',terrain:battleField.terrain||''};
+}
+export function compareSpeed(left,right,field){
+ const a=makePokemon(left),b=makePokemon(right);const resolved=resolvedField(a,b,field);
+ if(['Air Lock','Cloud Nine'].includes(a.ability)||['Air Lock','Cloud Nine'].includes(b.ability))resolved.weather='';
+ const mine=speedForSet(left,resolved),opponent=speedForSet(right,resolved);
+ const difference=mine.effective-opponent.effective;
+ const winner=difference===0?'tie':(field.trickRoom?difference<0:difference>0)?'left':'right';
+ return {left:mine,right:opponent,winner,difference,trickRoom:!!field.trickRoom,weather:resolved.weather,terrain:resolved.terrain};
+}
+export function minimumSpeedPoints(left,right,field){
+ for(let sp=0;sp<=32;sp++)if(compareSpeed({...left,points:{...blankPoints(),spe:sp}},right,field).winner==='left')return sp;
+ return null;
+}
+export function theoreticalSpeed(base){
+ const neutral=base+20,maxNeutral=base+52,max=Math.floor(maxNeutral*1.1);
+ return {min:Math.floor(neutral*.9),neutral,maxNeutral,max,scarf:Math.floor(max*1.5),tailwind:max*2};
+}
