@@ -30,6 +30,9 @@ try{
  await page.getByRole('spinbutton',{name:'我方HP能力点数值',exact:true}).fill('2');
  await choose('我方招式1','巨声','巨声 Hyper Voice 一般');
  await choose('我方招式2','广域战力','广域战力 Expanding Force 超能力');
+ await choose('我方招式3','守住','守住 Protect 变化 一般');
+ await choose('我方招式4','戏法空间','戏法空间 Trick Room 变化 超能力');
+ assert.match(await page.locator('.team-builder-card .move-slot').nth(2).innerText(),/变化/);
  await page.getByRole('button',{name:'配置第2位',exact:true}).click();
  await choose('我方宝可梦','喷火龙','喷火龙 Charizard');
  await page.locator('.team-builder-card .forms').getByRole('button',{name:'Mega Y',exact:true}).click();
@@ -48,6 +51,7 @@ try{
  const local=await page.evaluate(key=>JSON.parse(localStorage.getItem(key)),LOCAL_TEAM_KEY);
  const savedLocal=local.teams.find(t=>t.name===name);assert.equal(savedLocal.members.filter(Boolean).length,6);
  assert.equal(savedLocal.members[0].ability,'Pixilate');assert.equal(savedLocal.members[0].moveSlots[0].move,'Hyper Voice');assert.equal(savedLocal.members[1].points.spe,15);
+ assert.deepEqual(savedLocal.members[0].moveSlots.slice(2).map(s=>s.move),['Protect','Trick Room']);
  await page.reload({waitUntil:'networkidle'});
  await page.getByRole('button',{name:'载入队伍 '+name,exact:true}).click();
  await page.getByRole('button',{name:'保存到云端',exact:true}).click();
@@ -62,6 +66,16 @@ try{
  assert.equal(await page.getByRole('spinbutton',{name:'我方特攻能力点数值',exact:true}).inputValue(),'32');
  assert.equal(await page.locator('.right .pokemon-english').innerText(),originalOpponent);
  assert.match(await page.locator('.left .move-slot').first().innerText(),/妖精皮肤/);
+ assert.match(await page.locator('.status-result').innerText(),/变化招式，不计算伤害/);
+ assert.equal(await page.locator('.status-result .survival-verdict').count(),0);
+ assert.equal(await page.locator('.status-details .roll-chart').count(),0);
+ assert.equal(await page.locator('.outgoing .comparison-survive').count(),2);
+ assert.equal(await page.locator('.left .move-slot').nth(2).getByRole('checkbox').count(),0);
+ await page.getByRole('button',{name:'我方招式3 守住计算结果',exact:true}).click();
+ assert.match(await page.locator('.status-details').innerText(),/守住/);
+ await page.getByRole('button',{name:'我方招式1 巨声计算结果',exact:true}).click();
+ assert.equal(await page.locator('.status-result').count(),0);
+ assert.ok(await page.locator('.roll-chart .roll-column').count()>0);
  await page.getByRole('button',{name:'载入第2位 喷火龙 · Mega Y',exact:true}).click();
  assert.equal(await page.getByRole('spinbutton',{name:'我方速度能力点数值',exact:true}).inputValue(),'15');
  await page.locator('.left .presets').getByRole('button',{name:'清空能力点',exact:true}).click();
@@ -79,6 +93,9 @@ try{
  await other.getByRole('button',{name:'载入队伍 '+name,exact:true}).click();
  await other.getByRole('link',{name:'伤害计算',exact:true}).click();
  await other.getByLabel('选择已保存队伍',{exact:true}).selectOption('cloud:'+cloudId);
+ await other.getByRole('button',{name:'载入第1位 沙奈朵 · Mega',exact:true}).click();
+ assert.match(await other.locator('.status-result').innerText(),/变化招式，不计算伤害/);
+ assert.match(await other.locator('.left .move-slot').nth(2).innerText(),/守住/);
  await other.getByRole('button',{name:'载入第2位 喷火龙 · Mega Y',exact:true}).click();
  assert.equal(await other.getByRole('spinbutton',{name:'我方速度能力点数值',exact:true}).inputValue(),'15');
  assert.equal(await other.evaluate(key=>localStorage.getItem(key),LOCAL_TEAM_KEY),null);
@@ -87,6 +104,7 @@ try{
  const download=page.waitForEvent('download');await page.getByRole('button',{name:'导出这支队伍',exact:true}).click();
  const file=await download;await file.saveAs('verification/teams-roundtrip.json');
  const exported=JSON.parse(readFileSync('verification/teams-roundtrip.json','utf8'));assert.equal(exported.teams[0].members[1].points.spe,15);
+ assert.equal(exported.teams[0].members[0].moveSlots[3].move,'Trick Room');
  await page.getByLabel('导入队伍文件',{exact:true}).setInputFiles('verification/teams-roundtrip.json');
  await page.getByRole('status').filter({hasText:'已导入 1 支队伍'}).waitFor();
  await page.getByLabel('导入队伍文件',{exact:true}).setInputFiles({name:'broken.json',mimeType:'application/json',buffer:Buffer.from('{"bad":true}')});
@@ -105,6 +123,8 @@ try{
   await page.setViewportSize({width,height:900});await noOverflow();
   if(width===390)await page.screenshot({path:'verification/teams-mobile.png',fullPage:true});
   await page.getByRole('link',{name:'伤害计算',exact:true}).click();await noOverflow();
+  await page.getByRole('button',{name:'载入第1位 沙奈朵 · Mega',exact:true}).click();
+  await page.getByRole('button',{name:'我方招式4 戏法空间计算结果',exact:true}).click();await noOverflow();
   if(width===390)await page.screenshot({path:'verification/team-loadout-mobile.png',fullPage:true});
   await page.getByRole('link',{name:'我的队伍',exact:true}).click();
  }

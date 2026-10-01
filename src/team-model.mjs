@@ -24,10 +24,10 @@ export function normalizeMember(value){
  requireValue(['','brn','par','psn','tox','slp','frz'].includes(value.status),'异常状态不正确。');
  requireValue(Array.isArray(value.moveSlots)&&value.moveSlots.length===4,'每只宝可梦需要四个招式槽位。');
  const moveSlots=value.moveSlots.map(slot=>{
-  const m=moves.get(slot?.move);requireValue(m&&!m.unsupported,'队伍包含不支持的攻击招式。');
+  const m=moves.get(slot?.move);requireValue(m&&!m.unsupported,'队伍包含不支持的招式。');
   let hits=slot.hits??undefined;
   if(hits!==undefined){const range=Array.isArray(m.multihit)?m.multihit:[m.multihit||1,m.multihit||1];requireValue(Number.isInteger(hits)&&hits>=range[0]&&hits<=range[1],'多段招式命中次数不正确。')}
-  return {move:slot.move,crit:!!slot.crit,hits};
+  return {move:slot.move,crit:m.category==='Status'?false:!!slot.crit,hits:m.category==='Status'?undefined:hits};
  });
  const activeMove=Number.isInteger(value.activeMove)&&value.activeMove>=0&&value.activeMove<4?value.activeMove:0;
  return {species:p.name,nature:value.nature,ability:value.ability,abilityOn:!!value.abilityOn,item:value.item,points,boosts,hp:value.hp,status:value.status,moveSlots,activeMove,...moveSlots[activeMove],screens:Object.fromEntries(screens.map(k=>[k,!!value.screens?.[k]]))};

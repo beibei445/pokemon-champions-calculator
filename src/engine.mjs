@@ -50,6 +50,8 @@ export function runCalculation(attacking,defending,field){
  if(['Counter','Mirror Coat','Metal Burst','Comeuppance','Spit Up','Beat Up'].includes(attacking.move))throw new Error('该招式需要上一击伤害、蓄力次数或队伍信息；当前条件不足，无法给出可靠结果。');
  const overrides=attacking.move==='Metal Claw'?{basePower:50,category:'Physical',type:'Steel',flags:{contact:1,slicing:1}}:undefined;
  const move=new Move(gen,attacking.move,{ability:attacker.ability,item:attacker.item,isCrit:!!attacking.crit,hits:attacking.hits||undefined,overrides});
+ // Status moves are saved build choices, not attacks or simulated battle actions.
+ if(move.category==='Status')return {isStatus:true,category:'Status',type:move.type,bp:0,min:null,max:null,minPercent:null,maxPercent:null,ko:null,survive:null,rolls:null,distribution:[],label:'变化招式',description:'变化招式，不计算伤害。招式效果不会自动施加到其他招式；需要时请手动调整强化、状态或对战环境。',weather:resolved.weather||'',terrain:resolved.terrain||''};
  // Champions calc omits Grassy Glide's conditional priority. Set it before immunity checks.
  const groundingAttacker=attacker.clone();checkItem(groundingAttacker,false);
  if(move.name==='Grassy Glide'&&resolved.terrain==='Grassy'&&isGrounded(groundingAttacker,battleField)){

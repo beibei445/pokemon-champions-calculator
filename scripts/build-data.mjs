@@ -12,10 +12,10 @@ const pokemon=Array.from(gen.species).filter(s=>!s.name.endsWith('-Both')).map(s
  const abilities=s.name.includes('-Mega')?Object.values(s.abilities||{}):Array.from(new Set([...Object.values(s.abilities||{}),...Object.values(dex.abilities||{})])).filter(a=>abilityIds.has(id(a)));
  return {...s,root,number:dex.num||0,abilities,megaItem:dex.requiredItem||'',sprite:s.name.toLowerCase().replace(/[^a-z0-9-]/g,''),zh:translations.species[id(root)]||root};
 });
-const moves=Array.from(gen.moves).map(m=>{
+const moves=Array.from(gen.moves).filter(m=>m.name!=='(No Move)').map(m=>{
  const move=new calc.Move(gen,m.name);
  const incomplete=m.name==='Metal Claw';
  return {name:m.name,zh:translations.moves[m.id]||m.name,type:incomplete?'Steel':move.type,category:incomplete?'Physical':move.category,bp:incomplete?50:move.bp,multihit:m.multihit,flags:m.flags,target:move.target,unsupported:['Counter','Mirror Coat','Metal Burst','Comeuppance','Spit Up','Beat Up'].includes(m.name)};
-}).filter(m=>m.category!=='Status');
+});
 writeFileSync(new URL('../src/dex.json',import.meta.url),JSON.stringify({pokemon,moves,items}));
 console.log({pokemon:pokemon.length,moves:moves.length,items:items.length});
