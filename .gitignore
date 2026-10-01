@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.sites-runtime/
+test-results/
+*.tgz
+verification/
