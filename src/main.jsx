@@ -1,35 +1,19 @@
 import React,{useState,useMemo,useRef,useEffect} from 'react';
 import {createRoot} from 'react-dom/client';
-import {Swords,Shield,Gauge,SlidersHorizontal,ArrowLeftRight,ChevronDown,Search,Check,X,RotateCcw,Info,Sun,CloudRain,Snowflake,Wind,Sparkles,Heart,ChevronRight,Zap,ExternalLink,CheckCircle2,AlertCircle,Users} from 'lucide-react';
-import {STATS,defaultSet,defaultField,makePokemon,runCalculation,blankPoints,Move,gen,runMoveSet,selectMoveSlot,compareSpeed} from './engine.mjs';
-import {pokemon,families,speciesByName,moves,moveByName,items,typeNames,statNames,statCodes,statColors,natures,formName,fullName,tr} from './data.js';
-import artwork from './artwork.json';
+import {Swords,Shield,Gauge,SlidersHorizontal,ArrowLeftRight,X,RotateCcw,Info,ChevronRight,ExternalLink,CheckCircle2,AlertCircle,Users} from 'lucide-react';
+import {defaultSet,defaultField,runMoveSet,selectMoveSlot,compareSpeed} from './engine.mjs';
+import {typeNames,fullName,tr} from './data.js';
+import {PokemonCard} from './pokemon-card.jsx';
 import './style.css';
 import './teams.css';
-import {Type,Picker,Select,Toggle} from './components.jsx';
-import {MovePanel,MoveComparison,ConversionNote,TerrainNote} from './moves.jsx';
+import {Type,Toggle} from './components.jsx';
+import {MoveComparison,ConversionNote,TerrainNote} from './moves.jsx';
 import {SpeedPage} from './speed-page.jsx';
-import {useTeams,TeamsPage,TeamEditBar} from './teams.jsx';
+import {useTeams,TeamsPage,TeamLoadout} from './teams.jsx';
 import {clone} from './team-model.mjs';
 const viewFromHash=()=>location.hash.startsWith('#teams')?'teams':location.hash.startsWith('#speed')?'speed':'damage';
-const art=new Set(artwork);
 const pct=n=>n.toFixed(1);
 
-function PokemonCard({side,set,onChange,results}){
- const mine=side==='left';const s=speciesByName[set.species];const family=families.find(f=>f.value===s.root);const p=makePokemon(set);const used=STATS.reduce((n,k)=>n+set.points[k],0);const nat=natures.find(n=>n[0]===set.nature);const move=moveByName[set.move];const effectiveHits=new Move(gen,set.move,{ability:set.ability,item:set.item}).hits;
- const [advanced,setAdvanced]=useState(false);
- const update=patch=>onChange({...set,...patch});
- const changeSpecies=name=>{const next=speciesByName[name];update({species:name,ability:next.abilities[0]||'',item:next.megaItem||((set.item===s.megaItem)?'':set.item)})};
- const changePoints=(key,value)=>{const limit=Math.min(32,66-used+set.points[key]);update({points:{...set.points,[key]:Math.max(0,Math.min(limit,Math.round(Number(value)||0)))}})};
- const preset=kind=>{let points=blankPoints(),nature='Hardy';if(kind==='physical'){points.hp=32;points.def=32;points.spe=2;nature='Bold'}if(kind==='special'){points.hp=32;points.spd=32;points.spe=2;nature='Calm'}if(kind==='attack'){points.atk=32;points.spe=32;points.hp=2;nature='Adamant'}if(kind==='spattack'){points.spa=32;points.spe=32;points.hp=2;nature='Modest'}update({points,nature})};
- return <section className={'pokemon-card '+side} aria-label={mine?'我方配置':'对手配置'}><div className="card-topline"><span className="side-label"><span className="side-marker"/>{mine?'我方宝可梦':'对手宝可梦'}</span><span className="level">Lv. 50</span></div><div className="pokemon-scene"><div className="scene-ring"/><div className="scene-id">#{String(s.number).padStart(4,'0')}</div>{art.has(s.sprite)?<img className="pokemon-art" src={'/pokemon/'+s.sprite+'.webp'} alt={fullName(s.name)}/>:<div className="no-art"><Sparkles size={32}/><span>该形态暂无图像</span></div>}<div className="scene-types">{s.types.map(t=><Type type={t} key={t}/>)}</div>{s.name.includes('-Mega')&&<span className="mega-badge"><Sparkles size={11}/> MEGA</span>}</div><div className="pokemon-heading"><Picker label={mine?'我方宝可梦':'对手宝可梦'} value={s.root} options={families} onChange={root=>{const f=families.find(f=>f.value===root);changeSpecies((f.forms.find(x=>formName(x)==='普通形态')||f.forms.find(x=>!x.name.includes('-Mega'))||f.forms[0]).name)}}/><span className="pokemon-english">{s.name}</span></div><div className="forms" aria-label="形态">{family.forms.map(f=><button key={f.name} className={set.species===f.name?'selected':''} onClick={()=>changeSpecies(f.name)}>{f.name.includes('-Mega')&&<Sparkles size={12}/>} {formName(f)}</button>)}</div>
- <div className="build-fields"><Select label="性格 / 能力倾向" value={set.nature} onChange={v=>update({nature:v})} options={natures.map(([v,t,plus,minus])=>[v,t+(plus?`（+${statNames[plus]} −${statNames[minus]}）`:'（无修正）')])}/><div className="pair-fields"><Select label="特性" value={set.ability} onChange={v=>update({ability:v})} options={s.abilities.map(a=>[a,tr('abilities',a)])}/><div className="field-label"><span>携带道具</span>{s.megaItem?<div className="fixed-item" title={s.megaItem}><Sparkles size={13}/>{tr('items',s.megaItem)}</div>:<Picker compact label="携带道具" value={set.item} options={items} onChange={v=>update({item:v})}/>}</div></div></div>
- <div className="stats-heading"><h3><SlidersHorizontal size={15}/>能力点分配</h3><span><b className={used===66?'full-points':''}>{used}</b> / 66 <small>SP</small></span></div><div className="presets"><button onClick={()=>preset('physical')}>物耐</button><button onClick={()=>preset('special')}>特耐</button><button onClick={()=>preset('attack')}>物攻</button><button onClick={()=>preset('spattack')}>特攻</button><button onClick={()=>preset('none')} aria-label="清空能力点"><RotateCcw size={12}/></button></div>
- <div className="stats-table"><div className="stats-table-head"><span>能力</span><span>种族值</span><span>能力点</span><span>实数值</span></div>{STATS.map(key=><div key={key} className="stat-row"><span className="stat-label"><i style={{background:statColors[key]}}/>{statNames[key]}{nat[2]===key?<em className="up">↑</em>:nat[3]===key?<em className="down">↓</em>:null}</span><span className="base-stat">{s.baseStats[key]}</span><div className="point-control"><input type="range" aria-label={(mine?'我方':'对手')+statNames[key]+'能力点'} min="0" max="32" value={set.points[key]} onChange={e=>changePoints(key,e.target.value)} style={{'--fill':set.points[key]/32*100+'%'}}/><input type="number" aria-label={(mine?'我方':'对手')+statNames[key]+'能力点数值'} min="0" max="32" value={set.points[key]} onChange={e=>changePoints(key,e.target.value)}/></div><strong className="actual-stat">{p.rawStats[key]}</strong></div>)}</div><div className="stat-total"><span>种族值合计 <b>{STATS.reduce((n,k)=>n+s.baseStats[k],0)}</b></span><span>剩余 <b>{66-used}</b> 点</span></div>
- <div className="hp-control"><div><span><Heart size={13}/>当前 HP</span><span><b>{p.curHP()}</b> / {p.maxHP()} <small>({set.hp}%)</small></span></div><input type="range" min="1" max="100" value={set.hp} aria-label={(mine?'我方':'对手')+'当前HP百分比'} onChange={e=>update({hp:Number(e.target.value)})} style={{'--fill':set.hp+'%'}}/></div>
- <MovePanel side={side} set={set} onChange={value=>onChange(value,{focusMove:true})} results={results}/>
- <button className="advanced-toggle" aria-expanded={advanced} onClick={()=>setAdvanced(!advanced)}><SlidersHorizontal size={14}/>能力等级、状态与壁<ChevronDown size={14} className={advanced?'rotated':''}/></button>{advanced&&<div className="advanced-panel"><div className="boosts">{STATS.filter(k=>k!=='hp').map(k=><Select key={k} label={statNames[k]+'等级'} value={set.boosts[k]} options={Array.from({length:13},(_,i)=>[i-6,i-6>0?'+'+(i-6):String(i-6)])} onChange={v=>update({boosts:{...set.boosts,[k]:Number(v)}})}/>)}</div><Select label="异常状态" value={set.status} options={[["","无异常"],['brn','灼伤'],['par','麻痹'],['psn','中毒'],['tox','剧毒'],['slp','睡眠'],['frz','冰冻']]} onChange={v=>update({status:v})}/><div className="screens">{[['isReflect','反射壁'],['isLightScreen','光墙'],['isAuroraVeil','极光幕'],['isHelpingHand','受到帮助'],['isFriendGuard','队友友情防守'],['isTailwind','顺风']].map(([key,t])=><Toggle key={key} checked={set.screens[key]} onChange={v=>update({screens:{...set.screens,[key]:v}})}>{t}</Toggle>)}<Toggle checked={set.abilityOn} onChange={v=>update({abilityOn:v})}>特性触发 / 威吓入场</Toggle></div><p>能力等级填写额外强化；开启威吓入场时，引擎自动计算攻击降低。</p></div>}</section>
-}
 
 function DamageResult({result,attacker,defender,incoming,active,onClick}){
  const good=result.ko===0;const bad=result.ko>=1-1e-9;const status=good?'safe':bad?'danger':'risky';
@@ -53,7 +37,7 @@ function App(){
  const [rules,setRules]=useState(false);
  const [view,setView]=useState(viewFromHash);
  const teams=useTeams();
- const loadTeamMember=(member,side,index)=>{(side==='left'?setLeft:setRight)(clone(member));setDetail(side==='left'?'outgoing':'incoming');teams.setEditing({index,side});location.hash='damage'};
+ const loadOwnMember=member=>{setLeft(clone(member));setDetail('outgoing')};
  useEffect(()=>{
   const navigate=()=>setView(viewFromHash());
   addEventListener('hashchange',navigate);return()=>removeEventListener('hashchange',navigate);
@@ -93,10 +77,10 @@ function App(){
    <div className="header-actions"><span className="version-badge">Pokémon Champions</span><button onClick={()=>setRules(true)}><Info size={16}/><span>计算说明</span></button></div>
   </div></header>
   <main>
-   <div className="page-heading"><div><div className="eyebrow">{view==='teams'?'YOUR TEAM LIBRARY':view==='speed'?'SPEED TIERS & TURN ORDER':'BATTLE DAMAGE CALCULATOR'}</div><h1>{view==='teams'?'保存配队，随时开战':view==='speed'?'把握速度，先手一步':'每一点耐久，都有答案'}<span>。</span></h1><p>{view==='teams'?'六个队伍槽位，本地与云端都能保存。':view==='speed'?'对照速度线，找到先手所需的每一点配速。':'四招伤害同时查看，普通与 Mega 特性分别计算。'}</p></div>{view!=='teams'&&<div className="page-actions"><button className="subtle-button" onClick={reset}><RotateCcw size={15}/>重置</button><button className="swap-button" onClick={()=>{setLeft(right);setRight(left);if(teams.editing)teams.setEditing({...teams.editing,side:teams.editing.side==='left'?'right':'left'})}}><ArrowLeftRight size={16}/>交换双方</button></div>}</div>
-   {view!=='teams'&&<TeamEditBar teams={teams} left={left} right={right} field={field}/>}
-   {view==='teams'?<TeamsPage teams={teams} left={left} right={right} field={field} onLoad={loadTeamMember} onField={setField}/>:view==='speed'?<SpeedPage left={left} right={right} onLeft={setLeft} onRight={setRight} field={field} onField={setField}/>:<>
+   <div className="page-heading"><div><div className="eyebrow">{view==='teams'?'YOUR TEAM LIBRARY':view==='speed'?'SPEED TIERS & TURN ORDER':'BATTLE DAMAGE CALCULATOR'}</div><h1>{view==='teams'?'保存配队，随时开战':view==='speed'?'把握速度，先手一步':'每一点耐久，都有答案'}<span>。</span></h1><p>{view==='teams'?'六个队伍槽位，本地与云端都能保存。':view==='speed'?'对照速度线，找到先手所需的每一点配速。':'四招伤害同时查看，普通与 Mega 特性分别计算。'}</p></div>{view!=='teams'&&<div className="page-actions"><button className="subtle-button" onClick={reset}><RotateCcw size={15}/>重置</button><button className="swap-button" onClick={()=>{setLeft(right);setRight(left)}}><ArrowLeftRight size={16}/>交换双方</button></div>}</div>
+   {view==='teams'?<TeamsPage teams={teams}/>:view==='speed'?<SpeedPage left={left} right={right} onLeft={setLeft} onRight={setRight} field={field} onField={setField}/>:<>
     <section className="battle-settings" aria-label="对战环境"><div className="settings-title"><SlidersHorizontal size={16}/><span>对战环境</span></div><div className="battle-mode" role="group" aria-label="对战模式"><button className={field.gameType==='Singles'?'selected':''} onClick={()=>updateField({gameType:'Singles'})}>单打</button><button className={field.gameType==='Doubles'?'selected':''} onClick={()=>updateField({gameType:'Doubles'})}>双打</button></div><div className="settings-divider"/><div className="weather-control"><span>天气</span><select aria-label="天气" value={field.weather} onChange={e=>updateField({weather:e.target.value})}>{[['Auto','自动 · 特性'],['','无天气'],['Sun','晴天'],['Rain','雨天'],['Sand','沙暴'],['Snow','雪天']].map(([v,t])=><option key={v} value={v}>{t}</option>)}</select></div><div className="weather-control"><span>场地</span><select aria-label="场地" value={field.terrain} onChange={e=>updateField({terrain:e.target.value})}>{[['Auto','自动 · 特性'],['','无场地'],['Electric','电气场地'],['Grassy','青草场地'],['Misty','薄雾场地'],['Psychic','精神场地']].map(([v,t])=><option key={v} value={v}>{t}</option>)}</select></div><Toggle checked={field.gravity} onChange={v=>updateField({gravity:v})}>重力</Toggle><div className="rules-pill"><Shield size={13}/>50 级 · 66 能力点</div></section>
+    <TeamLoadout teams={teams} onLoad={loadOwnMember} current={left}/>
     {!calc.error&&<div className="mobile-results-summary"><a href="#battle-results"><Swords size={15}/><span>对手承伤 · 招式{left.activeMove+1}<b>{pct(calc.outgoing.minPercent)}–{pct(calc.outgoing.maxPercent)}%</b></span><strong>{calc.outgoing.label}</strong></a><a href="#battle-results"><Shield size={15}/><span>我方承伤 · 招式{right.activeMove+1}<b>{pct(calc.incoming.minPercent)}–{pct(calc.incoming.maxPercent)}%</b></span><strong>{calc.incoming.label}</strong></a></div>}
     <div className="calculator-grid">
      <PokemonCard side="left" set={left} onChange={changeLeft} results={calc.outgoingAll}/>

@@ -13,35 +13,74 @@ async function noOverflow(){assert.equal(await page.evaluate(()=>document.docume
 try{
  await page.goto(url,{waitUntil:'networkidle'});
  await page.getByRole('link',{name:'我的队伍',exact:true}).click();
- assert.equal(await page.locator('.team-member').count(),6);
+ assert.equal(await page.locator('.team-slot-tab').count(),6);
  await page.getByRole('textbox',{name:'队伍名称',exact:true}).fill(name);
- await page.getByRole('button',{name:'将我方配置存入第1位',exact:true}).click();
- await page.getByRole('button',{name:'将对手配置存入第2位',exact:true}).click();
- assert.match(await page.getByLabel('队伍第2位',{exact:true}).innerText(),/Mega Y/);
+ assert.equal(await page.getByRole('button',{name:/加入对手|载入对手|更新为对手/}).count(),0);
+ await page.getByRole('button',{name:'配置第1位',exact:true}).click();
+ async function choose(label,query,option){
+  await page.getByRole('button',{name:label,exact:true}).click();
+  await page.getByRole('textbox',{name:'搜索'+label,exact:true}).fill(query);
+  await page.getByRole('option',{name:option,exact:true}).click();
+ }
+ await choose('我方宝可梦','沙奈朵','沙奈朵 Gardevoir');
+ await page.locator('.team-builder-card .forms').getByRole('button',{name:'Mega',exact:true}).click();
+ await page.getByLabel('性格 / 能力倾向',{exact:true}).selectOption('Modest');
+ await page.getByRole('spinbutton',{name:'我方特攻能力点数值',exact:true}).fill('32');
+ await page.getByRole('spinbutton',{name:'我方速度能力点数值',exact:true}).fill('32');
+ await page.getByRole('spinbutton',{name:'我方HP能力点数值',exact:true}).fill('2');
+ await choose('我方招式1','巨声','巨声 Hyper Voice 一般');
+ await choose('我方招式2','广域战力','广域战力 Expanding Force 超能力');
+ await page.getByRole('button',{name:'配置第2位',exact:true}).click();
+ await choose('我方宝可梦','喷火龙','喷火龙 Charizard');
+ await page.locator('.team-builder-card .forms').getByRole('button',{name:'Mega Y',exact:true}).click();
+ await page.getByRole('spinbutton',{name:'我方特攻能力点数值',exact:true}).fill('20');
+ await page.getByRole('spinbutton',{name:'我方速度能力点数值',exact:true}).fill('15');
+ for(const [index,query,option]of [[3,'雷丘','雷丘 Raichu'],[4,'轰擂金刚猩','轰擂金刚猩 Rillaboom'],[5,'耿鬼','耿鬼 Gengar'],[6,'巨金怪','巨金怪 Metagross']]){
+  await page.getByRole('button',{name:'配置第'+index+'位',exact:true}).click();await choose('我方宝可梦',query,option);
+ }
+ await page.getByRole('button',{name:'配置第1位',exact:true}).click();
+ assert.equal(await page.getByRole('spinbutton',{name:'我方特攻能力点数值',exact:true}).inputValue(),'32');
+ assert.equal(await page.getByRole('spinbutton',{name:'我方速度能力点数值',exact:true}).inputValue(),'32');
+ assert.match(await page.locator('.team-builder-card .pokemon-english').innerText(),/Gardevoir-Mega/);
+ assert.equal(await page.locator('.team-builder-card .slot-damage').count(),0);
  await page.getByRole('button',{name:'保存到本地',exact:true}).click();
  await page.getByRole('button',{name:'载入队伍 '+name,exact:true}).waitFor();
  const local=await page.evaluate(key=>JSON.parse(localStorage.getItem(key)),LOCAL_TEAM_KEY);
- assert.equal(local.teams[0].members[1].ability,'Drought');assert.equal(local.teams[0].members[1].moveSlots.length,4);
+ const savedLocal=local.teams.find(t=>t.name===name);assert.equal(savedLocal.members.filter(Boolean).length,6);
+ assert.equal(savedLocal.members[0].ability,'Pixilate');assert.equal(savedLocal.members[0].moveSlots[0].move,'Hyper Voice');assert.equal(savedLocal.members[1].points.spe,15);
  await page.reload({waitUntil:'networkidle'});
  await page.getByRole('button',{name:'载入队伍 '+name,exact:true}).click();
- await page.getByLabel('队伍第2位',{exact:true}).getByRole('button',{name:'载入我方',exact:true}).click();
- assert.match(await page.locator('.left .pokemon-english').innerText(),/Charizard-Mega-Y/);
- assert.equal(await page.getByRole('spinbutton',{name:'我方特攻能力点数值',exact:true}).inputValue(),'32');
- await page.locator('.left .presets').getByRole('button',{name:'清空能力点',exact:true}).click();
- await page.getByRole('spinbutton',{name:'我方速度能力点数值',exact:true}).fill('15');
- await page.getByRole('button',{name:'更新回队伍槽位',exact:true}).click();
- await page.getByRole('link',{name:'返回队伍保存',exact:true}).click();
- assert.match(await page.getByLabel('队伍第2位',{exact:true}).innerText(),/S 15/);
- await page.getByRole('button',{name:'保存到本地',exact:true}).click();
  await page.getByRole('button',{name:'保存到云端',exact:true}).click();
  await page.getByRole('status').filter({hasText:'已保存到云端'}).waitFor();
  const cloudData=await (await context.request.get(url+'api/teams')).json();cloudId=cloudData.teams.find(t=>t.name===name).id;
+ await page.screenshot({path:'verification/teams-desktop.png',fullPage:true});
+ await page.getByRole('link',{name:'伤害计算',exact:true}).click();
+ await page.getByLabel('选择已保存队伍',{exact:true}).selectOption('local:'+savedLocal.id);
+ const originalOpponent=await page.locator('.right .pokemon-english').innerText();
+ await page.getByRole('button',{name:'载入第1位 沙奈朵 · Mega',exact:true}).click();
+ assert.match(await page.locator('.left .pokemon-english').innerText(),/Gardevoir-Mega/);
+ assert.equal(await page.getByRole('spinbutton',{name:'我方特攻能力点数值',exact:true}).inputValue(),'32');
+ assert.equal(await page.locator('.right .pokemon-english').innerText(),originalOpponent);
+ assert.match(await page.locator('.left .move-slot').first().innerText(),/妖精皮肤/);
+ await page.getByRole('button',{name:'载入第2位 喷火龙 · Mega Y',exact:true}).click();
+ assert.equal(await page.getByRole('spinbutton',{name:'我方速度能力点数值',exact:true}).inputValue(),'15');
+ await page.locator('.left .presets').getByRole('button',{name:'清空能力点',exact:true}).click();
+ await page.getByRole('button',{name:'载入第1位 沙奈朵 · Mega',exact:true}).click();
+ assert.equal(await page.getByRole('spinbutton',{name:'我方特攻能力点数值',exact:true}).inputValue(),'32');
+ const unchanged=await page.evaluate(key=>JSON.parse(localStorage.getItem(key)),LOCAL_TEAM_KEY);assert.equal(unchanged.teams.find(t=>t.id===savedLocal.id).members[1].points.spe,15);
+ await page.screenshot({path:'verification/team-loadout-desktop.png',fullPage:true});
+ await page.getByRole('link',{name:'我的队伍',exact:true}).click();
+ await page.locator('.team-storage-tabs').getByRole('button',{name:/云端/}).click();
+ await page.getByRole('button',{name:'载入队伍 '+name,exact:true}).click();
  // A fresh browser context has no local teams but can read the same signed-in cloud account.
  const otherContext=await browser.newContext({viewport:{width:390,height:844}}),other=await otherContext.newPage();
  await other.goto(url+'#teams',{waitUntil:'networkidle'});
  await other.locator('.team-storage-tabs').getByRole('button',{name:/云端/}).click();
  await other.getByRole('button',{name:'载入队伍 '+name,exact:true}).click();
- assert.match(await other.getByLabel('队伍第2位',{exact:true}).innerText(),/S 15/);
+ await other.getByRole('link',{name:'伤害计算',exact:true}).click();
+ await other.getByLabel('选择已保存队伍',{exact:true}).selectOption('cloud:'+cloudId);
+ await other.getByRole('button',{name:'载入第2位 喷火龙 · Mega Y',exact:true}).click();
+ assert.equal(await other.getByRole('spinbutton',{name:'我方速度能力点数值',exact:true}).inputValue(),'15');
  assert.equal(await other.evaluate(key=>localStorage.getItem(key),LOCAL_TEAM_KEY),null);
  await otherContext.close();
  await page.screenshot({path:'verification/teams-desktop.png',fullPage:true});
@@ -65,6 +104,9 @@ try{
  for(const width of [1440,1024,768,390,320]){
   await page.setViewportSize({width,height:900});await noOverflow();
   if(width===390)await page.screenshot({path:'verification/teams-mobile.png',fullPage:true});
+  await page.getByRole('link',{name:'伤害计算',exact:true}).click();await noOverflow();
+  if(width===390)await page.screenshot({path:'verification/team-loadout-mobile.png',fullPage:true});
+  await page.getByRole('link',{name:'我的队伍',exact:true}).click();
  }
  await page.setViewportSize({width:1440,height:1050});
  await page.getByRole('link',{name:'伤害计算',exact:true}).click();
@@ -83,7 +125,7 @@ try{
  assert.match(await page.locator('.condition-list').innerText(),/攻击方接地 \/ 防守方未接地/);
  await page.screenshot({path:'verification/terrain-desktop.png',fullPage:true});
  assert.deepEqual(errors,[]);
- writeFileSync('verification/teams-checks.json',JSON.stringify({result:'passed',checks:['six team slots','Mega build save/load','local reload persistence','edit member and update slot','cloud save/load in fresh browser context','file roundtrip','invalid import','concurrent edit conflict preserves draft','320/390/768/1024/1440 responsive','terrain conditions and spread visible'],errors},null,2));
+ writeFileSync('verification/teams-checks.json',JSON.stringify({result:'passed',checks:['direct six-member editing','no opponent team controls','independent form/nature/points/move configuration','Mega build save/load','local reload persistence','damage-page party selection','independent calculator and saved-party state','cloud save/load in fresh browser context','file roundtrip','invalid import','concurrent edit conflict preserves draft','320/390/768/1024/1440 responsive','terrain conditions and spread visible'],errors},null,2));
  console.log('Teams and terrain browser checks passed');
 }finally{
  if(cloudId){const all=await (await context.request.get(url+'api/teams')).json();const team=all.teams.find(t=>t.id===cloudId);if(team)await context.request.delete(url+'api/teams/'+cloudId,{headers:{'If-Match':String(team.revision)}})}

@@ -14,9 +14,9 @@ export function TerrainNote({result}){
  return <span className="terrain-note"><Sparkles size={12}/>{result.terrainNote}</span>;
 }
 
-export function MovePanel({side,set,onChange,results}){
+export function MovePanel({side,set,onChange,results,editOnly=false}){
  const mine=side==='left';const slots=getMoveSlots(set);
- return <div className="move-section four-moves"><div className="move-label"><Swords size={15}/><h3>攻击招式</h3><span>4 个槽位 · 同时计算</span></div><div className="move-slot-grid">{slots.map((slot,i)=>{
+ return <div className="move-section four-moves"><div className="move-label"><Swords size={15}/><h3>攻击招式</h3><span>{editOnly?'配置四个招式':'4 个槽位 · 同时计算'}</span></div><div className="move-slot-grid">{slots.map((slot,i)=>{
   const move=moveByName[slot.move],result=results?.[i];
   const defaultHits=new Move(gen,slot.move,{ability:set.ability,item:set.item}).hits;
   const change=patch=>onChange(updateMoveSlot(set,i,patch));
@@ -26,11 +26,11 @@ export function MovePanel({side,set,onChange,results}){
    <div className="slot-type"><Type type={move?.type}/>{result?.type!==move?.type&&result&&<><ChevronRight size={11}/><Type type={result.type}/></>}<span>威力 <b>{move?.bp||'变化'}</b>{result?.abilityPowerMultiplier>1&&<b> → {result.abilityBoostedBP}</b>}</span></div>
    <ConversionNote result={result}/>
    <TerrainNote result={result}/>
-   <button className="slot-damage" onClick={()=>onChange(selectMoveSlot(set,i))} aria-label={`${mine?'我方':'对手'}招式${i+1}伤害详情`}><strong>{result?`${pct(result.minPercent)}–${pct(result.maxPercent)}%`:'计算中'}</strong><span>{result?`${result.min}–${result.max} 伤害`:''}</span></button>
-   <div className="slot-verdict"><span className={result?.ko===0?'safe-text':result?.ko===1?'danger-text':'risky-text'}>{result?`目标存活 ${pct(result.survive*100)}%`:''}</span><Toggle checked={slot.crit} onChange={crit=>change({crit})}>要害</Toggle></div>
+   {!editOnly&&<><button className="slot-damage" onClick={()=>onChange(selectMoveSlot(set,i))} aria-label={`${mine?'我方':'对手'}招式${i+1}伤害详情`}><strong>{result?`${pct(result.minPercent)}–${pct(result.maxPercent)}%`:'计算中'}</strong><span>{result?`${result.min}–${result.max} 伤害`:''}</span></button>
+   <div className="slot-verdict"><span className={result?.ko===0?'safe-text':result?.ko===1?'danger-text':'risky-text'}>{result?`目标存活 ${pct(result.survive*100)}%`:''}</span><Toggle checked={slot.crit} onChange={crit=>change({crit})}>要害</Toggle></div></>}
    {move?.multihit&&<Select label={`${mine?'我方':'对手'}招式${i+1}命中次数`} value={slot.hits||defaultHits} options={Array.from({length:typeof move.multihit==='number'?1:move.multihit[1]-move.multihit[0]+1},(_,i)=>{const n=typeof move.multihit==='number'?move.multihit:move.multihit[0]+i;return[n,n+' 次']})} onChange={v=>change({hits:Number(v)})}/>}
   </div>
- })}</div><p className="four-move-note">每个槽位独立计算；点击伤害查看该招式的详细分布。</p></div>;
+ })}</div><p className="four-move-note">{editOnly?'保存队伍后，可在伤害计算页选择成员，直接载入四个招式。':'每个槽位独立计算；点击伤害查看该招式的详细分布。'}</p></div>;
 }
 
 export function MoveComparison({incoming,results,set,onSelect}){
