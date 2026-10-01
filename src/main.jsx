@@ -45,7 +45,7 @@ function App(){
  const [left,setLeft]=useState(()=>defaultSet('left'));
  const [right,setRight]=useState(()=>defaultSet('right'));
  const [field,setField]=useState(defaultField);
- const [detail,setDetail]=useState('incoming');
+ const [detail,setDetail]=useState('outgoing');
  const [rules,setRules]=useState(false);
  const [view,setView]=useState(()=>location.hash.startsWith('#speed')?'speed':'damage');
  useEffect(()=>{
@@ -62,7 +62,7 @@ function App(){
  const updateField=patch=>setField(f=>({...f,...patch}));
  const changeLeft=(value,options)=>{setLeft(value);if(options?.focusMove||value.activeMove!==left.activeMove)setDetail('outgoing')};
  const changeRight=(value,options)=>{setRight(value);if(options?.focusMove||value.activeMove!==right.activeMove)setDetail('incoming')};
- const reset=()=>{setLeft(defaultSet('left'));setRight(defaultSet('right'));setField(defaultField());setDetail('incoming')};
+ const reset=()=>{setLeft(defaultSet('left'));setRight(defaultSet('right'));setField(defaultField());setDetail('outgoing')};
  useEffect(()=>{
   const context=document.modelContext;if(!context?.registerTool)return;
   const lifecycle=new AbortController();
@@ -90,13 +90,13 @@ function App(){
    <div className="page-heading"><div><div className="eyebrow">{view==='speed'?'SPEED TIERS & TURN ORDER':'BATTLE DAMAGE CALCULATOR'}</div><h1>{view==='speed'?'把握速度，先手一步':'每一点耐久，都有答案'}<span>。</span></h1><p>{view==='speed'?'对照速度线，找到先手所需的每一点配速。':'四招伤害同时查看，普通与 Mega 特性分别计算。'}</p></div><div className="page-actions"><button className="subtle-button" onClick={reset}><RotateCcw size={15}/>重置</button><button className="swap-button" onClick={()=>{setLeft(right);setRight(left)}}><ArrowLeftRight size={16}/>交换双方</button></div></div>
    {view==='speed'?<SpeedPage left={left} right={right} onLeft={setLeft} onRight={setRight} field={field} onField={setField}/>:<>
     <section className="battle-settings" aria-label="对战环境"><div className="settings-title"><SlidersHorizontal size={16}/><span>对战环境</span></div><div className="battle-mode" role="group" aria-label="对战模式"><button className={field.gameType==='Singles'?'selected':''} onClick={()=>updateField({gameType:'Singles'})}>单打</button><button className={field.gameType==='Doubles'?'selected':''} onClick={()=>updateField({gameType:'Doubles'})}>双打</button></div><div className="settings-divider"/><div className="weather-control"><span>天气</span><select aria-label="天气" value={field.weather} onChange={e=>updateField({weather:e.target.value})}>{[['Auto','自动 · 特性'],['','无天气'],['Sun','晴天'],['Rain','雨天'],['Sand','沙暴'],['Snow','雪天']].map(([v,t])=><option key={v} value={v}>{t}</option>)}</select></div><div className="weather-control"><span>场地</span><select aria-label="场地" value={field.terrain} onChange={e=>updateField({terrain:e.target.value})}>{[['Auto','自动 · 特性'],['','无场地'],['Electric','电气场地'],['Grassy','青草场地'],['Misty','薄雾场地'],['Psychic','精神场地']].map(([v,t])=><option key={v} value={v}>{t}</option>)}</select></div><Toggle checked={field.gravity} onChange={v=>updateField({gravity:v})}>重力</Toggle><div className="rules-pill"><Shield size={13}/>50 级 · 66 能力点</div></section>
-    {!calc.error&&<div className="mobile-results-summary"><a href="#battle-results"><Shield size={15}/><span>我方承伤 · 招式{right.activeMove+1}<b>{pct(calc.incoming.minPercent)}–{pct(calc.incoming.maxPercent)}%</b></span><strong>{calc.incoming.label}</strong></a><a href="#battle-results"><Swords size={15}/><span>对手承伤 · 招式{left.activeMove+1}<b>{pct(calc.outgoing.minPercent)}–{pct(calc.outgoing.maxPercent)}%</b></span><strong>{calc.outgoing.label}</strong></a></div>}
+    {!calc.error&&<div className="mobile-results-summary"><a href="#battle-results"><Swords size={15}/><span>对手承伤 · 招式{left.activeMove+1}<b>{pct(calc.outgoing.minPercent)}–{pct(calc.outgoing.maxPercent)}%</b></span><strong>{calc.outgoing.label}</strong></a><a href="#battle-results"><Shield size={15}/><span>我方承伤 · 招式{right.activeMove+1}<b>{pct(calc.incoming.minPercent)}–{pct(calc.incoming.maxPercent)}%</b></span><strong>{calc.incoming.label}</strong></a></div>}
     <div className="calculator-grid">
      <PokemonCard side="left" set={left} onChange={changeLeft} results={calc.outgoingAll}/>
      <section className="results-column" aria-label="双向计算结果" id="battle-results"><div className="results-heading"><span className="results-line"/><span><Swords size={15}/>四招对战结果</span><span className="results-line"/></div>{calc.error?<div role="alert" className="error-result">无法计算：{calc.error}</div>:<>
-      <div className="result-group"><MoveComparison incoming results={calc.incomingAll} set={right} onSelect={i=>{changeRight(selectMoveSlot(right,i));setDetail('incoming')}}/><DamageResult incoming active={detail==='incoming'} result={calc.incoming} attacker={right} defender={left} onClick={()=>setDetail('incoming')}/></div>
-      <div className="versus"><span/>VS<span/></div>
       <div className="result-group"><MoveComparison results={calc.outgoingAll} set={left} onSelect={i=>{changeLeft(selectMoveSlot(left,i));setDetail('outgoing')}}/><DamageResult active={detail==='outgoing'} result={calc.outgoing} attacker={left} defender={right} onClick={()=>setDetail('outgoing')}/></div>
+      <div className="versus"><span/>VS<span/></div>
+      <div className="result-group"><MoveComparison incoming results={calc.incomingAll} set={right} onSelect={i=>{changeRight(selectMoveSlot(right,i));setDetail('incoming')}}/><DamageResult incoming active={detail==='incoming'} result={calc.incoming} attacker={right} defender={left} onClick={()=>setDetail('incoming')}/></div>
       <Details result={calc[detail]} attacker={detail==='incoming'?right:left} defender={detail==='incoming'?left:right}/>
      </>}<div className="result-footnote"><Info size={13}/><span>四招分别使用同一初始状态计算，不代表连续四次攻击。以命中为条件，不包含回合末伤害或回复；双打群攻默认命中多个目标。</span></div></section>
      <PokemonCard side="right" set={right} onChange={changeRight} results={calc.incomingAll}/>
