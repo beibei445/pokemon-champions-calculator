@@ -10,7 +10,7 @@
 
 ## Windows 本地启动
 
-在本目录运行 `npm install`（初次使用），然后运行 `npm run dev`，打开 http://127.0.0.1:5173 。也可双击 `启动计算器.cmd`。终端关闭后本地服务停止。
+在本目录运行 `npm install`（初次使用），然后运行 `npm run dev`，打开 网址 。也可双击 `启动计算器.cmd`。终端关闭后本地服务停止。
 
 `npm run build` 构建 React 客户端和 Cloudflare Worker。`npm run preview` 只预览构建后的客户端；需要验证云端接口时使用 `npm run dev`。本地开发使用独立 SQLite 文件 `.sites-runtime/teams.sqlite` 模拟 D1 和固定预览用户，未打包到生产。生产 D1 绑定为 `DB`，schema 在 `db/schema.ts`，Drizzle 迁移在 `drizzle/`；发布时由 Sites 应用迁移。全部宝可梦图像和名称数据均已保存在项目中；Google 字体不可用时使用系统字体。
 
