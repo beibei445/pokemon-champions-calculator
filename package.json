@@ -3,12 +3,17 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "main": "desktop/main.cjs",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "node scripts/build-app.mjs",
     "test": "node --test tests/*.test.mjs",
     "preview": "vite preview --host 127.0.0.1",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "build:desktop": "vite build --mode desktop --outDir dist/desktop",
+    "desktop:run": "npm run build:desktop && electron .",
+    "desktop:smoke": "npm run build:desktop && electron . --desktop-smoke",
+    "desktop:package": "npm run build:desktop && node scripts/package-desktop.mjs"
   },
   "dependencies": {
     "@pkmn/dex": "^0.10.11",
@@ -22,7 +27,20 @@
     "@vitejs/plugin-react": "^4.7.0",
     "drizzle-kit": "^0.31.11",
     "drizzle-orm": "^0.45.3",
+    "electron": "^44.7.2",
+    "electron-builder": "^26.15.3",
     "esbuild": "^0.28.2",
     "vite": "^7.0.0"
+  },
+  "build": {
+    "appId": "com.beibei.championslab",
+    "productName": "冠军实验室",
+    "electronDist": "node_modules/electron/dist",
+    "electronDownload": { "mirror": "https://npmmirror.com/mirrors/electron/" },
+    "directories": { "output": "release" },
+    "files": ["desktop/**/*", "dist/desktop/**/*", "package.json", "!node_modules/**/*"],
+    "asar": true,
+    "win": { "target": ["nsis"], "icon": "desktop/icon.ico", "artifactName": "Champions-Lab-Setup-${version}.${ext}" },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true }
   }
 }

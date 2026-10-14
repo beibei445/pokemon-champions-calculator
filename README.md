@@ -14,6 +14,14 @@
 
 `npm run build` 构建 React 客户端和 Cloudflare Worker。`npm run preview` 只预览构建后的客户端；需要验证云端接口时使用 `npm run dev`。本地开发使用独立 SQLite 文件 `.sites-runtime/teams.sqlite` 模拟 D1 和固定预览用户，未打包到生产。生产 D1 绑定为 `DB`，schema 在 `db/schema.ts`，Drizzle 迁移在 `drizzle/`；发布时由 Sites 应用迁移。全部宝可梦图像和名称数据均已保存在项目中；Google 字体不可用时使用系统字体。
 
+## Windows 桌面软件
+
+在项目目录运行 `npm run desktop:package`，安装包生成在 `release/Champions-Lab-Setup-1.0.0.exe`。安装后从开始菜单或桌面快捷方式打开“冠军实验室”，无需启动本地开发服务器。开发检查可运行 `npm run desktop:run`，自动化启动检查可运行 `npm run desktop:smoke`。
+
+桌面软件使用随安装包打包的 React 页面、计算引擎、数据和图像。伤害计算、速度线、本地队伍及 JSON 导入／导出不依赖网络。队伍保存在此软件的用户资料中，与浏览器网站的本地队伍分别存储；可用 JSON 文件在两处迁移。
+
+云端队伍仍连接现有 Sites 服务。未登录可使用其他功能；点击云端登录入口后，软件会打开独立登录窗口，并在登录返回后刷新队伍。云端读写需要互联网和同一 ChatGPT 账号，服务不可用时本地功能不受影响。打包过程只在本机生成安装包，不会上传仓库或重新发布网站。
+
 ## 验证
 
 `npm test` 验证冠军能力公式、分配限制、Mega、确定的伤害向量、天气、残血、双打、免疫、壁、要害、披带、结实、多段独立卷积、固定伤害、愤怒门牙、蛮干、一击必杀和缺少条件的招式。
